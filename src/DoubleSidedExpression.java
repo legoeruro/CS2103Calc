@@ -6,19 +6,19 @@
  */
 public class DoubleSidedExpression extends AbstractCompoundExpression implements Expression {
 
-    public DoubleSidedExpression(Expression leftChild, Expression rightChild, String sign, SignExpressor signExpressor, DerivativeExpressor derivativeExpressor){
-        super(leftChild, rightChild, sign, signExpressor, derivativeExpressor);
+    public DoubleSidedExpression(Expression leftChild, Expression rightChild, String sign, EvaluateExpressor evaluateExpressor, DerivativeExpressor derivativeExpressor){
+        super(leftChild, rightChild, sign, evaluateExpressor, derivativeExpressor);
     }
 
     public Expression deepCopy(){
         Expression leftCopy = _leftChild.deepCopy();
         Expression rightCopy = _rightChild.deepCopy();
-        AbstractCompoundExpression copy = new DoubleSidedExpression(leftCopy, rightCopy, _sign, _signExpressor, _derivativeExpressor);
+        AbstractCompoundExpression copy = new DoubleSidedExpression(leftCopy, rightCopy, _sign, _evaluateExpressor, _derivativeExpressor);
         return copy;
     }
 
     public double evaluate(double x){
-        double accu = _signExpressor.signMethod(_leftChild.evaluate(x), _rightChild.evaluate(x));
+        double accu = _evaluateExpressor.signMethod(_leftChild.evaluate(x), _rightChild.evaluate(x));
         return accu;
     }
 

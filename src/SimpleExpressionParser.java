@@ -18,7 +18,7 @@ public class SimpleExpressionParser implements ExpressionParser {
 		return new DoubleSidedExpression(leftChild, rightChild, 
 				"+",
 				(a, b) -> a+b, 
-				(exp1, exp2) -> AExpression(exp1.differentiate(), exp2.differentiate()));
+				(f, g) -> AExpression(f.differentiate(), g.differentiate()));
 	}
 
 	/**
@@ -31,7 +31,7 @@ public class SimpleExpressionParser implements ExpressionParser {
 		return new DoubleSidedExpression(leftChild, rightChild, 
 				"-",
 				(a, b) -> a-b, 
-				(exp1, exp2) -> SExpression(exp1.differentiate(), exp2.differentiate()));
+				(f, g) -> SExpression(f.differentiate(), g.differentiate()));
 	}
 			
 	/**

@@ -5,15 +5,15 @@ public abstract class AbstractCompoundExpression implements Expression {
     protected Expression _rightChild;
 
     protected String _sign;
-    protected SignExpressor _signExpressor;
+    protected EvaluateExpressor _evaluateExpressor;
     protected DerivativeExpressor _derivativeExpressor;
 
-    public AbstractCompoundExpression(Expression leftChild, Expression rightChild, String sign, SignExpressor signExpressor, DerivativeExpressor derivativeExpressor){
+    public AbstractCompoundExpression(Expression leftChild, Expression rightChild, String sign, EvaluateExpressor evaluateExpressor, DerivativeExpressor derivativeExpressor){
         _leftChild = leftChild;
         _rightChild = rightChild;
         
         _sign = sign;
-        _signExpressor = signExpressor;
+        _evaluateExpressor = evaluateExpressor;
         _derivativeExpressor = derivativeExpressor;
     }
 
