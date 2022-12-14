@@ -23,12 +23,14 @@ public abstract class AbstractCompoundExpression implements Expression {
             conv += "\t";
         }
         conv += _sign + "\n";
+        conv += _leftChild.convertToString(indentLevel + 1);
+        if (_rightChild != null) conv += _rightChild.convertToString(indentLevel + 1);
         return conv;
     }
 
-    public void addChilds(Expression leftChild, Expression rightChild){
-        _leftChild = leftChild;
-        _rightChild = rightChild;
+    public Expression differentiate(){
+        Expression diffExpression = _derivativeExpressor.derive(_leftChild, _rightChild);
+        return diffExpression;
     }
 
 

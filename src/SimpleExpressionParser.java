@@ -1,4 +1,5 @@
 import java.util.function.*;
+import java.math.*;
 
 public class SimpleExpressionParser implements ExpressionParser {
 
@@ -8,45 +9,147 @@ public class SimpleExpressionParser implements ExpressionParser {
 	 */
 
 	/**
-	 * Create an Additive Expression, with 
+	 * Create an Additive Expression of the type g(x) + h(x), with 
 	 * "+" sign
 	 * evaluation of 2 doubles
-	 * and differentiation
+	 * and differentiation = f'(x)+g'(x)
 	 */
 	protected Expression AExpression(Expression leftChild, Expression rightChild){
-		return new LeftAssoExpression(leftChild, rightChild, 
+		return new DoubleSidedExpression(leftChild, rightChild, 
 				"+",
 				(a, b) -> a+b, 
-				(exp1, exp2) -> AExpression(leftChild.differentiate(), rightChild.differentiate()));
+				(exp1, exp2) -> AExpression(exp1.differentiate(), exp2.differentiate()));
 	}
 
 	/**
-	 * Create a Subtractive Expression, with 
+	 * Create a Subtractive Expression of the type g(x) - h(x), with 
 	 * "-" sign
 	 * evaluation of 2 doubles
-	 * and differentiation
+	 * and differentiation = f'(x)-g'(x)
 	 */
 	protected Expression SExpression(Expression leftChild, Expression rightChild){
-		return new LeftAssoExpression(leftChild, rightChild, 
+		return new DoubleSidedExpression(leftChild, rightChild, 
 				"-",
 				(a, b) -> a-b, 
-				(exp1, exp2) -> SExpression(leftChild.differentiate(), rightChild.differentiate()));
+				(exp1, exp2) -> SExpression(exp1.differentiate(), exp2.differentiate()));
 	}
 			
 	/**
-	 * Create a Multiplicative Expression, with 
+	 * Create a Multiplicative Expression of the type g(x)*h(X), with 
 	 * "*" sign
 	 * evaluation of 2 doubles
-	 * and differentiation
+	 * and differentiation = leftDiff + rightDiff
+	 * with leftDiff = g(x)*h'(x), rightDiff = g'(x)*h(x)
 	 */
 	protected Expression MExpression(Expression leftChild, Expression rightChild){
-		Expression leftDiff = MExpression(leftChild.differentiate(), rightChild);
-		Expression rightDiff = MExpression(leftChild, rightChild.differentiate());
-		return new LeftAssoExpression(leftChild, rightChild, 
+		return new DoubleSidedExpression(leftChild, rightChild, 
 				"*",
 				(a, b) -> a*b, 
-				(exp1, exp2) -> SExpression(leftDiff, rightDiff));
+				new DerivativeExpressor() {
+					public Expression derive (Expression g, Expression h){
+						Expression gCopy = g.deepCopy();
+						Expression hCopy = h.deepCopy();
+
+						Expression leftDiff = MExpression(gCopy, hCopy.differentiate());
+						Expression rightDiff = MExpression(gCopy.differentiate(), hCopy);
+						return AExpression(leftDiff, rightDiff);
+					}
+				});
 	}
+
+	/**
+	 * Create a Division Expression of the type g(x)/h(X), with 
+	 * "*" sign
+	 * evaluation of 2 doubles
+	 * and differentiation = diff1 - diff2
+	 * with gCopy = g(x), hCopy = h(x), 
+	 * gDiff = g'(x), hDiff =  h'(x)
+	 * hSq = h^2(x)
+	 * diff1 = g'(x)/h(x)
+	 * diff2 = g(x)*h'(x)/h^2(x)
+	 */
+	protected Expression DExpression(Expression leftChild, Expression rightChild){
+		return new DoubleSidedExpression(leftChild, rightChild, 
+				"/",
+				(a, b) -> a/b, 
+				new DerivativeExpressor() {
+					public Expression derive (Expression g, Expression h){
+						Expression gCopy = g.deepCopy();
+						Expression hCopy = h.deepCopy();
+						Expression gDiff = g.differentiate();
+						Expression hDiff = h.differentiate();
+						Expression hSq = E2Expression(h.deepCopy(), new LiteralExpression(2));
+
+						Expression diff1 = DExpression(gDiff, hCopy);
+						Expression diff2 = MExpression(gCopy, DExpression(hDiff, hSq));
+						return SExpression(diff1, diff2);
+					}
+				});
+	}
+
+	/**
+	 * Create an Exponential Expression of the type c^h(x), with 
+	 * "^" sign
+	 * evaluation of 2 doubles
+	 * and differentiation = cLog*cCopy^hCopy*hDiff
+	 * with cLog = log(c), cCopy=c, hCopy=h(x), hDiff=h'(x)
+	 */
+	protected Expression E1Expression(Expression leftChild, Expression rightChild){
+		return new DoubleSidedExpression(leftChild, rightChild, 
+		"^",
+		(a, b) -> Math.pow(a, b), 
+		new DerivativeExpressor(){
+			public Expression derive (Expression c, Expression h){
+						Expression cLog = LExpression(c);
+						Expression cCopy = c.deepCopy();
+						Expression hCopy = h.deepCopy();
+						Expression hDiff = h.differentiate();
+						return MExpression(cLog, MExpression(E1Expression(cCopy, hCopy), hDiff));
+					}
+				});
+	}
+
+	/**
+	 * Create an Exponential Expression of the type g(x)^c, with 
+	 * "^" sign
+	 * evaluation of 2 doubles
+	 * and differentiation = cCopy*gCopy^cMinus*gDiff
+	 * cCopy = c, gCopy = g(x), cMinus = C-1, gDiff = g'(x)
+	 */
+	protected Expression E2Expression(Expression leftChild, Expression rightChild){
+		return new DoubleSidedExpression(leftChild, rightChild, 
+		"^",
+		(a, b) -> Math.pow(a, b), 
+		new DerivativeExpressor(){
+			public Expression derive (Expression g, Expression c){
+								Expression cCopy = c.deepCopy();
+								Expression gCopy = g.deepCopy();
+								Expression cMinus = new LiteralExpression(c.evaluate(0) - 1);
+								Expression gDiff = g.differentiate();
+								return MExpression(cCopy, MExpression(E2Expression(gCopy, cMinus), gDiff));
+							}
+						});
+	}
+
+	/**
+	 * Create an Logarithmic Expression of the type log g(x), with 
+	 * "log()" sign
+	 * evaluation of 1 double, the other is null
+	 * and differentiation = g'(x)/g(x)
+	 */
+	protected Expression LExpression(Expression child){
+		return new OneSidedExpression(child,  
+		"log()",
+		(a, nullValue) -> Math.log(a), 
+		new DerivativeExpressor(){
+			public Expression derive (Expression g, Expression nullExpression){
+								Expression gCopy = g.deepCopy();
+								Expression gDiff = g.differentiate();
+								return DExpression(gDiff, gCopy);
+							}
+						});
+	}
+
 	
 	        /**
          * Attempts to create an expression tree from the specified String.

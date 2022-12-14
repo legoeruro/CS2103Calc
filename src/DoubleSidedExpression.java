@@ -4,16 +4,16 @@
  * working with deepCopy(): instantitate a LeftAssoExpression object
  * and evaluate(): evaluate from left to right
  */
-public class LeftAssoExpression extends AbstractCompoundExpression implements Expression {
+public class DoubleSidedExpression extends AbstractCompoundExpression implements Expression {
 
-    public LeftAssoExpression(Expression leftChild, Expression rightChild, String sign, SignExpressor signExpressor, DerivativeExpressor derivativeExpressor){
+    public DoubleSidedExpression(Expression leftChild, Expression rightChild, String sign, SignExpressor signExpressor, DerivativeExpressor derivativeExpressor){
         super(leftChild, rightChild, sign, signExpressor, derivativeExpressor);
     }
 
     public Expression deepCopy(){
         Expression leftCopy = _leftChild.deepCopy();
         Expression rightCopy = _rightChild.deepCopy();
-        AbstractCompoundExpression copy = new LeftAssoExpression(leftCopy, rightCopy, _sign, _signExpressor, _derivativeExpressor);
+        AbstractCompoundExpression copy = new DoubleSidedExpression(leftCopy, rightCopy, _sign, _signExpressor, _derivativeExpressor);
         return copy;
     }
 
@@ -22,9 +22,6 @@ public class LeftAssoExpression extends AbstractCompoundExpression implements Ex
         return accu;
     }
 
-    public Expression differentiate(){
-        Expression diffExpression = _derivativeExpressor.derive(_leftChild, _rightChild);
-        return diffExpression;
-    }
+
     
 }
