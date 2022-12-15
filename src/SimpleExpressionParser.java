@@ -132,6 +132,23 @@ public class SimpleExpressionParser implements ExpressionParser {
 	}
 
 	/**
+	 * Create an Exponential Expression of the type g(x)^h(x), with 
+	 * "^" sign
+	 * evaluation of 2 doubles
+	 * and differentiation = null (cannot be differentiated)
+	 */
+	protected Expression ENullExpression(Expression leftChild, Expression rightChild){
+		return new DoubleSidedExpression(leftChild, rightChild, 
+		"^",
+		(a, b) -> Math.pow(a, b), 
+		new DerivativeExpressor(){
+			public Expression derive (Expression g, Expression c){
+								return null;
+							}
+						});
+	}
+
+	/**
 	 * Create an Logarithmic Expression of the type log g(x), with 
 	 * "log()" sign
 	 * evaluation of 1 double, the other is null
@@ -150,14 +167,31 @@ public class SimpleExpressionParser implements ExpressionParser {
 						});
 	}
 
+	/**
+	 * Create an Parentheses Expression of the type (f(x)), with 
+	 * "()" sign
+	 * evaluation of 1 double, the other is null
+	 * and differentiation = (f'(x))
+	 */
+	protected Expression PExpression(Expression child){
+		return new OneSidedExpression(child,  
+		"()",
+		(a, nullValue) -> a, 
+		new DerivativeExpressor(){
+			public Expression derive (Expression g, Expression nullExpression){
+								Expression gDiff = g.differentiate();
+								return PExpression(gDiff);
+							}
+						});
+	}
 	
 	        /**
          * Attempts to create an expression tree from the specified String.
          * Throws a ExpressionParseException if the specified string cannot be parsed.
 	 * Grammar:
 	 * S -> A | P
-	 * A -> M+A | M-A | M
-	 * M -> E*M | E/M | E
+	 * A -> A+M | A-M | M
+	 * M -> M*E | M/E | E
 	 * E -> P^E | P | log(P)
 	 * P -> (S) | L | V
 	 * L -> <float>
@@ -167,7 +201,7 @@ public class SimpleExpressionParser implements ExpressionParser {
          */
 	public Expression parse (String str) throws ExpressionParseException {
 		str = str.replaceAll(" ", "");
-		Expression expression = parseAdditiveExpression(str);
+		Expression expression = parseAdd(str);
 		if (expression == null) {
 			throw new ExpressionParseException("Cannot parse expression: " + str);
 		}
@@ -175,27 +209,121 @@ public class SimpleExpressionParser implements ExpressionParser {
 		return expression;
 	}
 
+	private int checkParenthesis(char c){
+		if (c == '(') return 1;
+		if (c == ')') return -1;
+		return 0;
+	}
 
-	
-	protected Expression parseAdditiveExpression (String str) {
+	//A -> A+M | A-M | M
+	protected Expression parseAdd (String str) throws ExpressionParseException {
+		int len = str.length();
+		if (len == 0) throw new ExpressionParseException("Cannot parse expression");
+		System.out.println("parseAdd, str: " + str);
 		Expression expression;
 
 		// TODO: implement me
-		
-		return null;
+		//Count parenthesis; do not evaluate if +/- is inside a parenthesis
+		int pCount = 0;
+		for (int index = str.length() - 1; index >= 1; --index){
+			pCount += checkParenthesis(str.charAt(index));
+			if (pCount > 0) return null;
+			if (str.charAt(index) == '+' && pCount == 0){
+				return AExpression(parseAdd(str.substring(0, index)), parseMulti(str.substring(index + 1, str.length())));
+			}
+			if (str.charAt(index) == '-' && pCount == 0){
+				return SExpression(parseAdd(str.substring(0, index)), parseMulti(str.substring(index + 1, str.length())));
+			}
+		}
+		if (pCount != 0) return null;
+		return parseMulti(str);
 	}
 
+	//M -> M*E | M/E | E
+	protected Expression parseMulti (String str) throws ExpressionParseException {
+		int len = str.length();
+		if (len == 0) throw new ExpressionParseException("Cannot parse expression");
+		System.out.println("parseMulti, str: " + str);
+		Expression expression;
+
+		// TODO: implement me
+		int pCount = 0;
+		for (int index = str.length() - 1; index >= 0; --index){
+			pCount += checkParenthesis(str.charAt(index));
+			if (pCount > 0) return null;
+			if (str.charAt(index) == '*' && pCount == 0){
+				return MExpression(parseMulti(str.substring(0, index)), parseExp(str.substring(index + 1, str.length())));
+			}
+			if (str.charAt(index) == '/' && pCount == 0){
+				return DExpression(parseMulti(str.substring(0, index)), parseExp(str.substring(index + 1, str.length())));
+			}
+		}
+		if (pCount != 0) return null;
+		return parseExp(str);
+	}
+
+	//E -> log(P) | P^E | P | 
+	protected Expression parseExp (String str) throws ExpressionParseException {
+		int len = str.length();
+		if (len == 0) throw new ExpressionParseException("Cannot parse expression");
+		System.out.println("parseExp, str: " + str);
+		Expression expression;
+
+		//log(P)
+		if (len > 5 && str.substring(0, 4) == "log(" && str.charAt(len - 1) == ')') 
+			return LExpression(parseAdd(str.substring(4, len - 1)));
+
+		//P^E
+		int pCount = 0;
+		for (int index = 0; index < len; ++index){
+			pCount += checkParenthesis(str.charAt(index));
+			if (pCount < 0) return null;
+
+			if (str.charAt(index) == '^' && pCount == 0){
+				
+				Expression left = parseParen(str.substring(0, index));
+				Expression right = parseExp(str.substring(index + 1, str.length()));
+
+				if (left instanceof LiteralExpression) return E1Expression(left, right);
+				if (right instanceof LiteralExpression) return E2Expression(left, right);
+				return ENullExpression(left, right);
+			}
+		}
+		return parseParen(str);
+	}
+
+	//P -> (S) | L | V
+	protected Expression parseParen (String str) throws ExpressionParseException {
+		int len = str.length();
+		if (len == 0) throw new ExpressionParseException("Cannot parse expression");
+		System.out.println("parseParen, str: " + str + "bbb");
+		Expression expression;
+
+
+		if (str.charAt(0) == '(' && str.charAt(len - 1) == ')') 
+			return PExpression(parseAdd(str.substring(1, len - 1)));
+		
+		Expression L = parseLiteralExpression(str);
+		if (L != null) return L;
+
+		Expression V = parseVariableExpression(str);
+		return V;
+	}
+
+	//L -> <float>
+	//V -> x
 	// TODO: once you implement a VariableExpression class, fix the return-type below.
-	protected /*Variable*/Expression parseVariableExpression (String str) {
+	protected VariableExpression parseVariableExpression (String str) {
 			if (str.equals("x")) {
 					// TODO implement the VariableExpression class and uncomment line below
-					// return new VariableExpression();
+					return new VariableExpression();
 			}
 			return null;
 	}
 
+
         // TODO: once you implement a LiteralExpression class, fix the return-type below.
-	protected /*Literal*/Expression parseLiteralExpression (String str) {
+	protected LiteralExpression parseLiteralExpression (String str) {
 		// From https://stackoverflow.com/questions/3543729/how-to-check-that-a-string-is-parseable-to-a-double/22936891:
 		final String Digits     = "(\\p{Digit}+)";
 		final String HexDigits  = "(\\p{XDigit}+)";
@@ -237,15 +365,14 @@ public class SimpleExpressionParser implements ExpressionParser {
 		    "[\\x00-\\x20]*");// Optional trailing "whitespace"
 
 		if (str.matches(fpRegex)) {
-			return null;
 			// TODO: Once you implement LiteralExpression, replace the line above with the line below:
-			// return new LiteralExpression(str);
+			return new LiteralExpression(Double.valueOf(str));
 		}
 		return null;
 	}
 
 	public static void main (String[] args) throws ExpressionParseException {
 		final ExpressionParser parser = new SimpleExpressionParser();
-		System.out.println(parser.parse("10*2+12-4.").convertToString(0));
+		System.out.println(parser.parse("1./(1. + 5^(-1*x))").convertToString(0));
 	}
 }
