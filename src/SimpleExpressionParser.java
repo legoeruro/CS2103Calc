@@ -6,6 +6,7 @@ public class SimpleExpressionParser implements ExpressionParser {
 	/*
 	 * Define different expressions with different sign, evaluation, and differentitations.
 	 * We define its sign, evaluation, and differentiation here: third, forth, and fifth parameters respectively  
+	 * Additional operations (such as sin, floor, etc.) that is not included can be defined the same way.
 	 */
 
 	/**
@@ -14,7 +15,7 @@ public class SimpleExpressionParser implements ExpressionParser {
 	 * evaluation of 2 doubles
 	 * and differentiation = f'(x)+g'(x)
 	 */
-	protected Expression AExpression(Expression leftChild, Expression rightChild){
+	protected DoubleSidedExpression AExpression(Expression leftChild, Expression rightChild){
 		return new DoubleSidedExpression(leftChild, rightChild, 
 				"+",
 				(a, b) -> a+b, 
@@ -27,7 +28,7 @@ public class SimpleExpressionParser implements ExpressionParser {
 	 * evaluation of 2 doubles
 	 * and differentiation = f'(x)-g'(x)
 	 */
-	protected Expression SExpression(Expression leftChild, Expression rightChild){
+	protected DoubleSidedExpression SExpression(Expression leftChild, Expression rightChild){
 		return new DoubleSidedExpression(leftChild, rightChild, 
 				"-",
 				(a, b) -> a-b, 
@@ -41,7 +42,7 @@ public class SimpleExpressionParser implements ExpressionParser {
 	 * and differentiation = leftDiff + rightDiff
 	 * with leftDiff = g(x)*h'(x), rightDiff = g'(x)*h(x)
 	 */
-	protected Expression MExpression(Expression leftChild, Expression rightChild){
+	protected DoubleSidedExpression MExpression(Expression leftChild, Expression rightChild){
 		return new DoubleSidedExpression(leftChild, rightChild, 
 				"*",
 				(a, b) -> a*b, 
@@ -68,7 +69,7 @@ public class SimpleExpressionParser implements ExpressionParser {
 	 * diff1 = g'(x)/h(x)
 	 * diff2 = g(x)*h'(x)/h^2(x)
 	 */
-	protected Expression DExpression(Expression leftChild, Expression rightChild){
+	protected DoubleSidedExpression DExpression(Expression leftChild, Expression rightChild){
 		return new DoubleSidedExpression(leftChild, rightChild, 
 				"/",
 				(a, b) -> a/b, 
@@ -94,7 +95,7 @@ public class SimpleExpressionParser implements ExpressionParser {
 	 * and differentiation = cLog*cCopy^hCopy*hDiff
 	 * with cLog = log(c), cCopy=c, hCopy=h(x), hDiff=h'(x)
 	 */
-	protected Expression E1Expression(Expression leftChild, Expression rightChild){
+	protected DoubleSidedExpression E1Expression(Expression leftChild, Expression rightChild){
 		return new DoubleSidedExpression(leftChild, rightChild, 
 		"^",
 		(a, b) -> Math.pow(a, b), 
@@ -116,7 +117,7 @@ public class SimpleExpressionParser implements ExpressionParser {
 	 * and differentiation = cCopy*gCopy^cMinus*gDiff
 	 * cCopy = c, gCopy = g(x), cMinus = C-1, gDiff = g'(x)
 	 */
-	protected Expression E2Expression(Expression leftChild, Expression rightChild){
+	protected DoubleSidedExpression E2Expression(Expression leftChild, Expression rightChild){
 		return new DoubleSidedExpression(leftChild, rightChild, 
 		"^",
 		(a, b) -> Math.pow(a, b), 
@@ -137,7 +138,7 @@ public class SimpleExpressionParser implements ExpressionParser {
 	 * evaluation of 2 doubles
 	 * and differentiation = null (cannot be differentiated)
 	 */
-	protected Expression ENullExpression(Expression leftChild, Expression rightChild){
+	protected DoubleSidedExpression ENullExpression(Expression leftChild, Expression rightChild){
 		return new DoubleSidedExpression(leftChild, rightChild, 
 		"^",
 		(a, b) -> Math.pow(a, b), 
@@ -154,9 +155,9 @@ public class SimpleExpressionParser implements ExpressionParser {
 	 * evaluation of 1 double, the other is null
 	 * and differentiation = g'(x)/g(x)
 	 */
-	protected Expression LExpression(Expression child){
+	protected OneSidedExpression LExpression(Expression child){
 		return new OneSidedExpression(child,  
-		"log()",
+		"log",
 		(a, nullValue) -> Math.log(a), 
 		new DerivativeExpressor(){
 			public Expression derive (Expression g, Expression nullExpression){
@@ -173,7 +174,7 @@ public class SimpleExpressionParser implements ExpressionParser {
 	 * evaluation of 1 double, the other is null
 	 * and differentiation = (f'(x))
 	 */
-	protected Expression PExpression(Expression child){
+	protected OneSidedExpression PExpression(Expression child){
 		return new OneSidedExpression(child,  
 		"()",
 		(a, nullValue) -> a, 
@@ -235,7 +236,6 @@ public class SimpleExpressionParser implements ExpressionParser {
 				return SExpression(parseAdd(str.substring(0, index)), parseMulti(str.substring(index + 1, str.length())));
 			}
 		}
-		if (pCount != 0) return null;
 		return parseMulti(str);
 	}
 
@@ -270,8 +270,10 @@ public class SimpleExpressionParser implements ExpressionParser {
 		Expression expression;
 
 		//log(P)
-		if (len > 5 && str.substring(0, 4) == "log(" && str.charAt(len - 1) == ')') 
-			return LExpression(parseAdd(str.substring(4, len - 1)));
+		if (len > 5 && (str.substring(0, 4) + str.charAt(len - 1)).equals("log()")) {
+			System.out.println("this is log h");
+			return LExpression(parseParen(str.substring(3, len)));
+		}
 
 		//P^E
 		int pCount = 0;
@@ -373,6 +375,6 @@ public class SimpleExpressionParser implements ExpressionParser {
 
 	public static void main (String[] args) throws ExpressionParseException {
 		final ExpressionParser parser = new SimpleExpressionParser();
-		System.out.println(parser.parse("1./(1. + 5^(-1*x))").convertToString(0));
+		System.out.println(parser.parse("x*x*x*2").convertToString(0));
 	}
 }
